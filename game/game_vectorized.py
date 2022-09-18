@@ -23,8 +23,8 @@ class Game:
         
         # self.scores[strategy_1, strategy_2, deal_id, turn] = the score advantage strategy1 gained from turn on deal_id
         self.scores = np.zeros((self.strategy_space, self.strategy_space, self.strategy_space, self.n_cards), dtype=np.int8)
-        self.vs_summary = np.zeros((self.strategy_space, self.strategy_space))
-        self.summary = np.zeros(self.strategy_space)
+        self.vs_summary = np.zeros((self.strategy_space, self.strategy_space), dtype=np.float)
+        self.summary = np.zeros(self.strategy_space, dtype=np.float)
 
     def compute_strategy_outcomes(self):
         deals, cards = self.dealer_space.shape
@@ -57,6 +57,8 @@ class Game:
         self.scores *= (self.dealer_space + 1)[np.newaxis, np.newaxis, :, :]
 
     def compute_summary_scores(self):
-        self.vs_summary = np.sum(np.clip(np.sum(self.scores, axis=3), -1, 1), axis=2)
+        self.vs_summary += np.sum(np.sum(self.scores, axis=3) > 0, axis=2) * 1.0
+        self.vs_summary += np.sum(np.sum(self.scores, axis=3) == 0, axis=2) * 0.5
+        self.vs_summary /= self.strategy_space
         self.summary = np.sum(self.vs_summary, axis=1)
-
+        self.summary *= 1 / self.strategy_space
