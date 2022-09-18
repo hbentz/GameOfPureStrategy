@@ -23,16 +23,16 @@ class Game:
         
         # self.scores[strategy_1, strategy_2, deal_id, turn] = the score advantage strategy1 gained from turn on deal_id
         self.scores = np.zeros((self.strategy_space, self.strategy_space, self.strategy_space, self.n_cards), dtype=np.int8)
+        self.vs_summary = np.zeros((self.strategy_space, self.strategy_space))
+        self.summary = np.zeros(self.strategy_space)
 
     def compute_strategy_outcomes(self):
         deals, cards = self.dealer_space.shape
         for n in range(1, deals):
             # Roll each strategy by n and compare it to the original to see which would win for what card
             # For a roll of 1 with 4 strategies [s1, s2, s3, s4] vs [s2, s3, s4, s1]
-            # As s1 vs s4 will be covered when the roll is 3 ([s1, s2, s3, s4] vs [s4, s3, s2, s1])
-            # The last n matchups can be discarded
-            p1_beats_p2 = self.dealer_space > np.roll(self.dealer_space, n, axis=0)[:-n]
-            p2_beats_p1 = self.dealer_space < np.roll(self.dealer_space, n, axis=0)[:-n]
+            p1_beats_p2 = self.dealer_space > np.roll(self.dealer_space, n, axis=0)
+            p2_beats_p1 = self.dealer_space < np.roll(self.dealer_space, n, axis=0)
             # Record the outcomes such that outcome[deal_id, card] = 1: 1: s1 wins, 0: draw, -1: s2 wins
             outcomes = 1 * p1_beats_p2 - 1 * p2_beats_p1
             # For each card value convert the outcomes into the correct space, eg np.diag for n=1 and 4 strategies at an arbitraty card is
@@ -41,7 +41,8 @@ class Game:
             #  [0, 0, 0, s3 vs s4],
             #  [0, 0, 0, 0]]
             for card in range(cards):
-                self.strategy_outcomes[:,:,card] += np.diag(1 * p1_beats_p2[:,card] - 1 * p2_beats_p1[:,card], n)
+                self.strategy_outcomes[:,:,card] += np.diag(outcomes[:-n, card], n)
+                self.strategy_outcomes[:,:,card] -= np.diag(outcomes[:-n, card], -n)
 
     def compute_scores(self):
         # Find the winner for each turn, note that the indicies for the strategies and deal_ids line up
@@ -54,4 +55,8 @@ class Game:
         
         # Compute the scores
         self.scores *= (self.dealer_space + 1)[np.newaxis, np.newaxis, :, :]
-                
+
+    def compute_summary_scores(self):
+        self.vs_summary = np.sum(np.clip(np.sum(self.scores, axis=3), -1, 1), axis=2)
+        self.summary = np.sum(self.vs_summary, axis=1)
+
